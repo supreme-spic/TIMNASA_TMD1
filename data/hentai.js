@@ -1,92 +1,89 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+// Importez dotenv et chargez les variables d'environnement depuis le fichier .env
+require("dotenv").config();
 
+const { Pool } = require("pg");
 
-const fs = require('fs');
-const path = require('path');
+// Utilisez le module 'set' pour obtenir la valeur de DATABASE_URL depuis vos configurations
+const s = require("../set");
 
-// Path to the JSON file storing hentai data
-const filePath = path.join(__dirname, '../tmd/hentai.json');
+// Récupérez l'URL de la base de données de la variable s.DATABASE_URL
+var dbUrl = s.DATABASE_URL ? s.DATABASE_URL : "postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd";
+const proConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+};
 
-// Load data from JSON file
-function loadHentaiData() {
+// Créez une pool de connexions PostgreSQL
+const pool = new Pool(proConfig);
+
+// Fonction pour créer la table "hentai"
+const creerTableHentai = async () => {
   try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Default if file doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS hentai (
+        groupeJid text PRIMARY KEY
+      );
+    `);
+    console.log("La table 'hentai' avec 'groupeJid' comme clé primaire a été créée avec succès.");
+  } catch (e) {
+    console.error("Une erreur est survenue lors de la création de la table 'hentai':", e);
   }
-}
+};
 
-// Save data to JSON file
-function saveHentaiData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+// Appelez la méthode pour créer la table "hentai" avec 'groupeJid' comme clé primaire
+creerTableHentai();
 
-// Create default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveHentaiData({});
-}
-
-// Function to add a group to the hentai list
+// Fonction pour ajouter un groupe à la liste de hentai
 async function addToHentaiList(groupeJid) {
+  const client = await pool.connect();
   try {
-    const data = loadHentaiData();
-    
-    // Add the group if it doesn't already exist
-    if (!data[groupeJid]) {
-      data[groupeJid] = true;
-      saveHentaiData(data);
-      console.log(`Group JID ${groupeJid} has been added to the hentai list.`);
-    } else {
-      console.log(`Group JID ${groupeJid} is already in the hentai list.`);
-    }
+    // Insérez le groupe dans la table "hentai"
+    const query = "INSERT INTO hentai (groupeJid) VALUES ($1)";
+    const values = [groupeJid];
+
+    await client.query(query, values);
+    console.log(`Le groupe JID ${groupeJid} a été ajouté à la liste de hentai.`);
   } catch (error) {
-    console.error("Error while adding the group to the hentai list:", error);
+    console.error("Erreur lors de l'ajout du groupe à la liste de hentai :", error);
+  } finally {
+    client.release();
   }
 }
 
-// Function to check if a group is in the hentai list
+// Fonction pour vérifier si un groupe est dans la liste de hentai
 async function checkFromHentaiList(groupeJid) {
+  const client = await pool.connect();
   try {
-    const data = loadHentaiData();
-    return !!data[groupeJid];
+    // Vérifiez si le groupe existe dans la table "hentai"
+    const query = "SELECT EXISTS (SELECT 1 FROM hentai WHERE groupeJid = $1)";
+    const values = [groupeJid];
+
+    const result = await client.query(query, values);
+    return result.rows[0].exists;
   } catch (error) {
-    console.error("Error while checking the group's presence in the hentai list:", error);
+    console.error("Erreur lors de la vérification de la présence du groupe dans la liste de hentai :", error);
     return false;
+  } finally {
+    client.release();
   }
 }
 
-// Function to remove a group from the hentai list
+// Fonction pour supprimer un groupe de la liste de hentai
 async function removeFromHentaiList(groupeJid) {
+  const client = await pool.connect();
   try {
-    const data = loadHentaiData();
-    
-    if (data[groupeJid]) {
-      delete data[groupeJid];
-      saveHentaiData(data);
-      console.log(`Group JID ${groupeJid} has been removed from the hentai list.`);
-    } else {
-      console.log(`Group JID ${groupeJid} is not in the hentai list.`);
-    }
+    // Supprimez le groupe de la table "hentai"
+    const query = "DELETE FROM hentai WHERE groupeJid = $1";
+    const values = [groupeJid];
+
+    await client.query(query, values);
+    console.log(`Le groupe JID ${groupeJid} a été supprimé de la liste de hentai.`);
   } catch (error) {
-    console.error("Error while removing the group from the hentai list:", error);
+    console.error("Erreur lors de la suppression du groupe de la liste de hentai :", error);
+  } finally {
+    client.release();
   }
 }
 
@@ -95,7 +92,3 @@ module.exports = {
   checkFromHentaiList,
   removeFromHentaiList,
 };
-
-
-
-//  **FrediEzra Tech info 2025 | all right reserved

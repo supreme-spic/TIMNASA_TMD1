@@ -1,92 +1,96 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+// Importez dotenv et chargez les variables d'environnement depuis le fichier .env
+require("dotenv").config();
 
+const { Pool } = require("pg");
 
+// Utilisez le module 'set' pour obtenir la valeur de DATABASE_URL depuis vos configurations
+const s = require("../set");
 
-const fs = require('fs');
-const path = require('path');
+// Récupérez l'URL de la base de données de la variable s.DATABASE_URL
+var dbUrl=s.DATABASE_URL?s.DATABASE_URL:"postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd"
+const proConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+};
 
-// Path to the JSON file storing event data
-const filePath = path.join(__dirname, '../tmd/events.json');
+// Créez une pool de connexions PostgreSQL
+const pool = new Pool(proConfig);
 
-// Load data from the JSON file
-function loadEventData() {
+// Vous pouvez maintenant utiliser 'pool' pour interagir avec votre base de données PostgreSQL.
+const creerTableevents = async () => {
   try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Return an empty object if the file doesn't exist or there's an error
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        Id serial PRIMARY KEY,
+        jid text UNIQUE,
+        welcome text DEFAULT 'non',
+        goodbye text DEFAULT 'non',
+        antipromote text DEFAULT 'non',
+        antidemote text DEFAULT 'non'
+      );
+    `);
+    console.log("La table 'events' a été créée avec succès.");
+  } catch (e) {
+    console.error("Une erreur est survenue lors de la création de la table 'events':", e);
   }
-}
+};
 
-// Save data to the JSON file
-function saveEventData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+// Appelez la méthode pour créer la table "banUser"
+creerTableevents();
 
-// Create the default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveEventData({});
-}
 
-// Function to add or update event values for a user (jid)
+
+// Fonction pour ajouter un utilisateur à la liste des bannis
 async function attribuerUnevaleur(jid, row, valeur) {
-  try {
-    const data = loadEventData();
+    const client = await pool.connect();
 
-    // If the jid exists, update the value of the specified row
-    if (data[jid]) {
-      data[jid][row] = valeur;
-      console.log(`La colonne ${row} a été actualisée sur ${valeur} pour le jid ${jid}`);
-    } else {
-      // If the jid doesn't exist, add a new entry with the specified row and value
-      data[jid] = { [row]: valeur };
-      console.log(`Nouveau jid ${jid} ajouté avec la colonne ${row} ayant la valeur ${valeur}`);
+    try {
+        // Vérifions si le jid existe dans la table
+        const result = await client.query('SELECT * FROM events WHERE jid = $1', [jid]);
+        
+        // Vérifiez la longueur des lignes (rows) pour déterminer si le jid existe
+        const jidExiste = result.rows.length > 0;
+
+        if (jidExiste) {
+            // Si le jid existe, mettez à jour la valeur de la colonne spécifiée (row)
+            await client.query(`UPDATE events SET ${row} = $1 WHERE jid = $2`, [valeur, jid]);
+            console.log(`La colonne ${row} a été actualisée sur ${valeur} pour le jid ${jid}`);
+        } else {
+            // Si le jid n'existe pas, ajoutez une nouvelle ligne avec le jid et la valeur spécifiés
+            await client.query(`INSERT INTO events (jid, ${row}) VALUES ($1, $2)`, [jid, valeur]);
+            console.log(`Nouveau jid ${jid} ajouté avec la colonne ${row} ayant la valeur ${valeur}`);
+        }
+    } catch (error) {
+        console.error("Erreur lors de l'actualisation de events :", error);
+    } finally {
+        client.release();
     }
+};
 
-    saveEventData(data);
-  } catch (error) {
-    console.error("Erreur lors de l'actualisation des événements :", error);
-  }
-}
 
-// Function to retrieve event data for a user (jid) and specified row
 async function recupevents(jid, row) {
-  try {
-    const data = loadEventData();
+     const client = await pool.connect()
+    try {
+        const result = await client.query('SELECT ' + row + ' FROM events WHERE jid = $1', [jid]);
+        const jidExists = result.rows.length > 0;
 
-    // Return the value of the specified row for the given jid, or 'non' if not found
-    if (data[jid] && data[jid][row] !== undefined) {
-      return data[jid][row];
-    } else {
-      return 'non';
+        if (jidExists) {
+            return result.rows[0][row];
+        } else {
+            return 'non';
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        client.release();
     }
-  } catch (error) {
-    console.error("Erreur lors de la récupération des événements :", error);
-  }
 }
+
+
 
 module.exports = {
   attribuerUnevaleur,
   recupevents,
 };
-
-
-
-//  **FrediEzra Tech info 2025 | all right reserved

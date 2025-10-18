@@ -1,107 +1,109 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+// Importez dotenv et chargez les variables d'environnement depuis le fichier .env
+require("dotenv").config();
 
+const { Pool } = require("pg");
 
+// Utilisez le module 'set' pour obtenir la valeur de DATABASE_URL depuis vos configurations
+const s = require("../set");
 
-const fs = require('fs');
-const path = require('path');
-
-// Path to the JSON file storing warning user data
-const filePath = path.join(__dirname, '../tmd/warn_users.json');
-
-// Load data from the JSON file
-function loadWarnData() {
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Return an empty object if the file doesn't exist or there's an error
-  }
-}
-
-// Save data to the JSON file
-function saveWarnData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-// Create the default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveWarnData({});
-}
-
-// Function to add or update the warning count for a user (jid)
-async function ajouterUtilisateurAvecWarnCount(jid) {
-  try {
-    const data = loadWarnData();
-
-    // If the jid is already in the data, increment the warn count
-    if (data[jid]) {
-      data[jid].warn_count += 1;
-    } else {
-      // Otherwise, create a new entry with a warn_count of 1
-      data[jid] = { warn_count: 1 };
-    }
-
-    saveWarnData(data);
-    console.log(`Utilisateur ${jid} ajouté ou mis à jour avec un warn_count de ${data[jid].warn_count}.`);
-  } catch (error) {
-    console.error("Erreur lors de l'ajout ou de la mise à jour de l'utilisateur :", error);
-  }
-}
-
-// Function to get the warning count for a user (jid)
-async function getWarnCountByJID(jid) {
-  try {
-    const data = loadWarnData();
-
-    // Return the warn_count of the user or 0 if the user doesn't exist
-    return data[jid] ? data[jid].warn_count : 0;
-  } catch (error) {
-    console.error("Erreur lors de la récupération du warn_count :", error);
-    return -1; // Return a default error value
-  }
-}
-
-// Function to reset the warning count for a user (jid)
-async function resetWarnCountByJID(jid) {
-  try {
-    const data = loadWarnData();
-
-    // Reset the warn_count to 0 for the specified jid
-    if (data[jid]) {
-      data[jid].warn_count = 0;
-      saveWarnData(data);
-      console.log(`Le warn_count de l'utilisateur ${jid} a été réinitialisé à 0.`);
-    } else {
-      console.log(`Utilisateur ${jid} non trouvé.`);
-    }
-  } catch (error) {
-    console.error("Erreur lors de la réinitialisation du warn_count :", error);
-  }
-}
-
-module.exports = {
-  ajouterUtilisateurAvecWarnCount,
-  getWarnCountByJID,
-  resetWarnCountByJID,
+// Récupérez l'URL de la base de données de la variable s.DATABASE_URL
+var dbUrl=s.DATABASE_URL?s.DATABASE_URL:"postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd"
+const proConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
+// Créez une pool de connexions PostgreSQL
+const pool = new Pool(proConfig);
 
+async function creerTableWarnUsers() {
+    const client = await pool.connect();
+    try {
+      // Exécutez la requête SQL pour créer la table "warn_users" si elle n'existe pas
+      const query = `
+        CREATE TABLE IF NOT EXISTS warn_users (
+          jid text PRIMARY KEY,
+          warn_count integer DEFAULT 0
+        );
+      `;
+      await client.query(query);
+      console.log("La table 'warn_users' a été créée avec succès.");
+    } catch (error) {
+      console.error("Erreur lors de la création de la table 'warn_users':", error);
+    } finally {
+      client.release();
+    }
+  };
+   creerTableWarnUsers();
 
-//  **FrediEzra Tech info 2025 | all right reserved
+   async function ajouterUtilisateurAvecWarnCount(jid) {
+    const client = await pool.connect();
+    try {
+      // Exécutez une requête SQL pour ajouter ou mettre à jour l'utilisateur
+      const query = `
+        INSERT INTO warn_users (jid, warn_count)
+        VALUES ($1, 1)
+        ON CONFLICT (jid)
+        DO UPDATE SET warn_count = warn_users.warn_count + 1;
+      `;
+      const values = [jid];
+  
+      await client.query(query, values);
+      console.log(`Utilisateur ${jid} ajouté ou mis à jour avec un warn_count de 1.`);
+    } catch (error) {
+      console.error("Erreur lors de l'ajout ou de la mise à jour de l'utilisateur :", error);
+    } finally {
+      client.release();
+    }
+  } ;
+
+  async function getWarnCountByJID(jid) {
+    const client = await pool.connect();
+    try {
+      // Exécutez une requête SQL pour récupérer le warn_count par JID
+      const query = "SELECT warn_count FROM warn_users WHERE jid = $1";
+      const values = [jid];
+  
+      const result = await client.query(query, values);
+      if (result.rows.length > 0) {
+        const warnCount = result.rows[0].warn_count;
+        return warnCount;
+      } else {
+        // Si l'utilisateur n'est pas trouvé, retournez 0 ou une autre valeur par défaut
+        return 0;
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération du warn_count :", error);
+      return -1; // Retournez une valeur d'erreur ou une autre valeur par défaut en cas d'erreur
+    } finally {
+      client.release();
+    }
+  } ;
+
+  async function resetWarnCountByJID(jid) {
+    const client = await pool.connect();
+    try {
+      // Exécutez une requête SQL pour réinitialiser le warn_count à 0 pour le JID spécifié
+      const query = "UPDATE warn_users SET warn_count = 0 WHERE jid = $1";
+      const values = [jid];
+  
+      await client.query(query, values);
+      console.log(`Le warn_count de l'utilisateur ${jid} a été réinitialisé à 0.`);
+    } catch (error) {
+      console.error("Erreur lors de la réinitialisation du warn_count :", error);
+    } finally {
+      client.release();
+    }
+  }
+  
+  
+  
+  
+  module.exports = {
+    ajouterUtilisateurAvecWarnCount,
+    getWarnCountByJID,
+    resetWarnCountByJID,
+  };
+  

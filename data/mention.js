@@ -1,119 +1,107 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+// Importez dotenv et chargez les variables d'environnement depuis le fichier .env
+require("dotenv").config();
 
+const { Pool } = require("pg");
 
+// Utilisez le module 'set' pour obtenir la valeur de DATABASE_URL depuis vos configurations
+const s = require("../set");
 
-const fs = require('fs');
-const path = require('path');
-
-// Path to the JSON file storing mention data
-const filePath = path.join(__dirname, '../tmd/mention.json');
-
-// Load data from the JSON file
-function loadMentionData() {
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Return an empty object if the file doesn't exist or there's an error
-  }
-}
-
-// Save data to the JSON file
-function saveMentionData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-// Create the default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveMentionData({});
-}
-
-// Function to add or update a group in the mention list
-async function addOrUpdateDataInMention(url, type, message) {
-  try {
-    const data = loadMentionData();
-    
-    // Add or update the group data
-    data[url] = { type, message };
-    saveMentionData(data);
-    console.log(`Data for URL ${url} has been added or updated in the mention list.`);
-  } catch (error) {
-    console.error("Error while adding or updating the data in the mention list:", error);
-  }
-}
-
-// Function to update the status of a mention
-async function updateStatusForMention(url, status) {
-  try {
-    const data = loadMentionData();
-    
-    // Check if the URL exists
-    if (data[url]) {
-      data[url].status = status; // Update the status
-      saveMentionData(data);
-      console.log(`Status for URL ${url} has been updated to: ${status}`);
-    } else {
-      console.log(`URL ${url} not found in the mention list.`);
-    }
-  } catch (error) {
-    console.error("Error while updating the status for the mention:", error);
-  }
-}
-
-// Function to retrieve all mentions
-async function getAllMentions() {
-  try {
-    const data = loadMentionData();
-    console.log("All mentions:", data);
-    return data;
-  } catch (error) {
-    console.error("Error while retrieving all mentions:", error);
-  }
-}
-
-// Function to remove a mention from the list
-async function removeFromMentionList(url) {
-  try {
-    const data = loadMentionData();
-    
-    // Check if the URL exists
-    if (data[url]) {
-      delete data[url]; // Remove the mention
-      saveMentionData(data);
-      console.log(`URL ${url} has been removed from the mention list.`);
-    } else {
-      console.log(`URL ${url} is not in the mention list.`);
-    }
-  } catch (error) {
-    console.error("Error while removing the mention from the list:", error);
-  }
-}
-
-// Exporting the functions for external use
-module.exports = {
-  addOrUpdateDataInMention,
-  getAllMentions,
-  updateStatusForMention,
-  removeFromMentionList,
+// Récupérez l'URL de la base de données de la variable s.DATABASE_URL
+var dbUrl=s.DATABASE_URL?s.DATABASE_URL:"postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd"
+const proConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
+// Créez une pool de connexions PostgreSQL
+const pool = new Pool(proConfig);
 
+// Fonction pour créer la table "alive" avec une colonne "id"
 
-//. ** FrediEzra Tech info 2025 | all right reserved
+async function creerTableMention() {
+    const client = await pool.connect();
+  try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS mention (
+          id serial PRIMARY KEY,
+          status text DEFAULT 'non',
+          url text,
+          type text,
+          message text
+        );
+      `);
+      console.log("La table 'mention' a été créée avec succès.");
+    } catch (e) {
+      console.error("Une erreur est survenue lors de la création de la table 'mention':", e);
+    } finally {
+        client.release();
+      }
+  };
+
+creerTableMention();
+
+  async function addOrUpdateDataInMention(url, type,message) {
+      const client = await pool.connect();
+      try {
+          const query = `
+              INSERT INTO mention (id, url, type, message)
+              VALUES (1, $1, $2, $3)
+              ON CONFLICT (id)
+              DO UPDATE SET  url = excluded.url, type = excluded.type , message = excluded.message;
+          `;
+          const values = [url, type,message];
+  
+          await client.query(query, values);
+          console.log("Données ajoutées ou mises à jour dans la table 'mention' avec succès.");
+      } catch (error) {
+          console.error("Erreur lors de l'ajout ou de la mise à jour des données dans la table 'mention':", error);
+      } finally {
+          client.release();
+      }
+  };
+  
+  
+async function modifierStatusId1(nouveauStatus) {
+    const client = await pool.connect();
+    try {
+        const query = `
+            UPDATE mention
+            SET status = $1
+            WHERE id = 1;
+        `;
+        const values = [nouveauStatus];
+
+        await client.query(query, values);
+        console.log("Le status a été modifié avec succès pour l'ID 1 dans la table 'mention'.");
+    } catch (error) {
+        console.error("Erreur lors de la modification du status pour l'ID 1 dans la table 'mention':", error);
+    } finally {
+        client.release();
+    }
+};
+
+async function recupererToutesLesValeurs() {
+    const client = await pool.connect();
+    try {
+        const query = `
+            SELECT * FROM mention;
+        `;
+
+        const result = await client.query(query);
+        console.log("Voici toutes les valeurs de la table 'mention':", result.rows);
+        return result.rows;
+    } catch (error) {
+        console.error("Erreur lors de la récupération des valeurs de la table 'mention':", error);
+    } finally {
+        client.release();
+    }
+};
+
+module.exports = {
+                    addOrUpdateDataInMention,
+                    recupererToutesLesValeurs,
+                    modifierStatusId1,
+}
+

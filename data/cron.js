@@ -1,116 +1,114 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+require("dotenv").config();
+const { Pool } = require("pg");
+let s =require("../set");
+var dbUrl=s.DATABASE_URL?s.DATABASE_URL:"postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd"; 
 
-
-const fs = require('fs');
-const path = require('path');
-
-// Path to the JSON file storing cron data
-const filePath = path.join(__dirname, '../tmd/cron.json');
-
-// Load data from JSON file
-function loadCronData() {
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Default if file doesn't exist
-  }
-}
-
-// Save data to JSON file
-function saveCronData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-// Create default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveCronData({});
-}
-
-// Function to create or update a cron entry
-async function addCron(group_id, row, value) {
-  try {
-    const data = loadCronData();
-
-    if (!data[group_id]) {
-      // Create new entry if it doesn't exist
-      data[group_id] = {};
-    }
-
-    // Update the specific field
-    data[group_id][row] = value;
-    saveCronData(data);
-    console.log(`Cron data updated for group_id: ${group_id}`);
-  } catch (error) {
-    console.error("Error while adding/updating cron data:", error);
-  }
-}
-
-// Function to get all cron entries
-async function getCron() {
-  try {
-    const data = loadCronData();
-    return Object.keys(data).map(group_id => ({
-      group_id,
-      ...data[group_id]
-    }));
-  } catch (error) {
-    console.error("Error while retrieving cron data:", error);
-    return [];
-  }
-}
-
-// Function to get a specific cron entry by group_id
-async function getCronById(group_id) {
-  try {
-    const data = loadCronData();
-    return data[group_id] || null;
-  } catch (error) {
-    console.error("Error while retrieving cron data by group_id:", error);
-    return null;
-  }
-}
-
-// Function to delete a cron entry by group_id
-async function delCron(group_id) {
-  try {
-    const data = loadCronData();
-    if (data[group_id]) {
-      delete data[group_id];
-      saveCronData(data);
-      console.log(`Cron data deleted for group_id: ${group_id}`);
-    } else {
-      console.log(`Group ID ${group_id} not found.`);
-    }
-  } catch (error) {
-    console.error("Error while deleting cron data:", error);
-  }
-}
-
-module.exports = {
-  getCron,
-  addCron,
-  delCron,
-  getCronById,
+const proConfig = {
+  connectionString:dbUrl ,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
+const pool = new Pool(proConfig);
 
 
-//  **FrediEzra Tech info 2025 | all right reserved 
+async function createTablecron() {
+
+    const client = await pool.connect();
+    try {
+      // Exécutez une requête SQL pour créer la table "cron" si elle n'existe pas déjà
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS cron (
+          group_id text PRIMARY KEY,
+          mute_at text default null,
+          unmute_at text default null
+        );
+      `);
+      console.log("La table 'cron' a été créée avec succès.");
+    } catch (error) {
+      console.error("Une erreur est survenue lors de la création de la table 'cron':", error);
+    } finally {
+      client.release();
+    }
+} ;
+
+createTablecron();
+
+
+async function getCron() {
+
+  const client = await pool.connect();
+  try {
+
+    const result = await client.query('SELECT * FROM cron');
+    return result.rows;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des données de la table "cron":', error);
+  } finally {
+    client.release();
+  }
+ }  ;
+
+
+async function addCron(group_id, rows, value) {
+  const client = await pool.connect();
+
+  try {
+    
+    let response = await client.query(`
+      SELECT * FROM cron WHERE group_id = $1`, [group_id]);
+
+      let exist = response.rows.length > 0 ;
+if (exist) {
+
+    await client.query(`
+    UPDATE cron SET ${rows} = $1 WHERE group_id = $2 `, [value, group_id])
+
+} else {
+    const query = `
+      INSERT INTO cron (group_id, ${rows}) 
+      VALUES ($1, $2)`;
+
+    await client.query(query, [group_id, value]);
+  }
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout de la donnée dans la table "cron":', error);
+  } finally {
+    client.release();
+  }
+}
+
+
+
+
+async function getCronById(group_id) {
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query('SELECT * FROM cron WHERE group_id = $1', [group_id]);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Erreur lors de la récupération des données de la table "cron":', error);
+  } finally {
+    client.release();
+  }
+}
+
+async function delCron(group_id) {
+
+   const client = await pool.connect();
+  try {
+    await client.query('DELETE FROM cron WHERE group_id = $1', [group_id]);
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la donnée dans la table "cron":', error);
+  } finally {
+    client.release();
+  }
+}
+
+ module.exports = {
+          getCron,
+          addCron,
+          delCron,
+          getCronById, }

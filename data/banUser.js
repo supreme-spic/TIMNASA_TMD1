@@ -1,85 +1,93 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+// Importez dotenv et chargez les variables d'environnement depuis le fichier .env
+require("dotenv").config();
 
+const { Pool } = require("pg");
 
-const fs = require('fs');
-const path = require('path');
+// Utilisez le module 'set' pour obtenir la valeur de DATABASE_URL depuis vos configurations
+const s = require("../set");
 
-// Path to the JSON file storing banned users
-const filePath = path.join(__dirname, '../tmd/banUser.json');
+// Récupérez l'URL de la base de données de la variable s.DATABASE_URL
+var dbUrl=s.DATABASE_URL?s.DATABASE_URL:"postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd"
+const proConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+};
 
-// Load data from JSON file
-function loadBanUserData() {
+// Créez une pool de connexions PostgreSQL
+const pool = new Pool(proConfig);
+
+// Vous pouvez maintenant utiliser 'pool' pour interagir avec votre base de données PostgreSQL.
+const creerTableBanUser = async () => {
   try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Default if file doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS banUser (
+        jid text PRIMARY KEY
+      );
+    `);
+    console.log("La table 'banUser' a été créée avec succès.");
+  } catch (e) {
+    console.error("Une erreur est survenue lors de la création de la table 'banUser':", e);
   }
-}
+};
 
-// Save data to JSON file
-function saveBanUserData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+// Appelez la méthode pour créer la table "banUser"
+creerTableBanUser();
 
-// Create default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveBanUserData({});
-}
 
-// Function to add a user to the ban list
+
+// Fonction pour ajouter un utilisateur à la liste des bannis
 async function addUserToBanList(jid) {
+  const client = await pool.connect();
   try {
-    const data = loadBanUserData();
-    data[jid] = true; // Add the user to the ban list
-    saveBanUserData(data);
-    console.log(`JID ${jid} added to the banned user list.`);
+    // Insérez l'utilisateur dans la table "banUser"
+    const query = "INSERT INTO banUser (jid) VALUES ($1)";
+    const values = [jid];
+
+    await client.query(query, values);
+    console.log(`JID ${jid} ajouté à la liste des bannis.`);
   } catch (error) {
-    console.error("Error while adding the banned user:", error);
+    console.error("Erreur lors de l'ajout de l'utilisateur banni :", error);
+  } finally {
+    client.release();
   }
 }
 
-// Function to check if a user is banned
+
+
+// Fonction pour vérifier si un utilisateur est banni
 async function isUserBanned(jid) {
+  const client = await pool.connect();
   try {
-    const data = loadBanUserData();
-    return data.hasOwnProperty(jid); // Check if the user is banned
+    // Vérifiez si l'utilisateur existe dans la table "banUser"
+    const query = "SELECT EXISTS (SELECT 1 FROM banUser WHERE jid = $1)";
+    const values = [jid];
+
+    const result = await client.query(query, values);
+    return result.rows[0].exists;
   } catch (error) {
-    console.error("Error while checking if the user is banned:", error);
+    console.error("Erreur lors de la vérification de l'utilisateur banni :", error);
     return false;
+  } finally {
+    client.release();
   }
 }
 
-// Function to remove a user from the ban list
+// Fonction pour supprimer un utilisateur de la liste des bannis
 async function removeUserFromBanList(jid) {
+  const client = await pool.connect();
   try {
-    const data = loadBanUserData();
-    if (data.hasOwnProperty(jid)) {
-      delete data[jid]; // Remove the user from the ban list
-      saveBanUserData(data);
-      console.log(`JID ${jid} removed from the banned user list.`);
-    } else {
-      console.log(`JID ${jid} is not in the banned user list.`);
-    }
+    // Supprimez l'utilisateur de la table "banUser"
+    const query = "DELETE FROM banUser WHERE jid = $1";
+    const values = [jid];
+
+    await client.query(query, values);
+    console.log(`JID ${jid} supprimé de la liste des bannis.`);
   } catch (error) {
-    console.error("Error while removing the banned user:", error);
+    console.error("Erreur lors de la suppression de l'utilisateur banni :", error);
+  } finally {
+    client.release();
   }
 }
 
@@ -88,7 +96,3 @@ module.exports = {
   isUserBanned,
   removeUserFromBanList,
 };
-
-
-
-//    **FrediEzra Tech info 2025 | All right reserved

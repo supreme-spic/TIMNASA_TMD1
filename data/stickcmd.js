@@ -1,141 +1,134 @@
-/*  +++Official frediezra tech info base vision 3.0.0 npm +++ */
-// Facebook @frediezra
-// Instagram @FrediEzra
-// Threads @FrediEzra
-// X (tweeter) @FrediEzra
-// LinkedIn @FrediEzra
-// YouTube @freeonlinetvT1
-// github @Fred1e, @mr-X-force, @devfreetec
-// WhatsApp @255752593977
-// telegram t.me/FrediEzraTechInfo 
-// WhatsApp channel 
-// Website fredietech-website.vercel.com
-// Enjoy Movies update fredi-movies-library.vercel.app
-// WE AVAILABLE ALL TIME TO RECEIVE YOU REQUEST FOR ANY DEV OR UPCOMING DEV IN WHATSAPP BOTS
-// **bot start npm read fredi.server.com root @Lucky-md-xforce : "^3.0.0" ***//
-// prepare everything pass lucky
-// frediete loaded updates 
-// bot name is LUCKY MD XFORCE 
+// Importez dotenv et chargez les variables d'environnement depuis le fichier .env
+require("dotenv").config();
 
+const { Pool } = require("pg");
 
+// Utilisez le module 'set' pour obtenir la valeur de DATABASE_URL depuis vos configurations
+const s = require("../set");
 
-const fs = require('fs');
-const path = require('path');
-
-// Path to the JSON file storing stickcmd data
-const filePath = path.join(__dirname, '../tmd/stickcmd.json');
-
-// Load data from the JSON file
-function loadStickcmdData() {
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return {}; // Return an empty object if the file doesn't exist or there's an error
-  }
-}
-
-// Save data to the JSON file
-function saveStickcmdData(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-// Create the default file if it doesn't exist
-if (!fs.existsSync(filePath)) {
-  saveStickcmdData({});
-}
-
-// Function to add a stickcmd
-async function addstickcmd(cmd, id) {
-  try {
-    const data = loadStickcmdData();
-
-    // Add the command if it doesn't exist
-    if (!data[cmd]) {
-      data[cmd] = { id };
-      saveStickcmdData(data);
-      console.log(`Stickcmd ${cmd} has been added.`);
-    } else {
-      console.log(`Stickcmd ${cmd} already exists.`);
-    }
-  } catch (error) {
-    console.error('Error while adding the stickcmd:', error);
-  }
-}
-
-// Function to check if a stickcmd exists by id
-async function inStickCmd(id) {
-  try {
-    const data = loadStickcmdData();
-
-    // Check if any command with the given id exists
-    for (const cmd in data) {
-      if (data[cmd].id === id) {
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    console.error('Error while checking if stickcmd exists:', error);
-    return false;
-  }
-}
-
-// Function to delete a stickcmd
-async function deleteCmd(cmd) {
-  try {
-    const data = loadStickcmdData();
-
-    // Check if the stickcmd exists
-    if (data[cmd]) {
-      delete data[cmd]; // Remove the stickcmd
-      saveStickcmdData(data);
-      console.log(`Stickcmd ${cmd} has been removed.`);
-    } else {
-      console.log(`Stickcmd ${cmd} does not exist.`);
-    }
-  } catch (error) {
-    console.error('Error while deleting the stickcmd:', error);
-  }
-}
-
-// Function to get the cmd by id
-async function getCmdById(id) {
-  try {
-    const data = loadStickcmdData();
-
-    // Search for the cmd by id
-    for (const cmd in data) {
-      if (data[cmd].id === id) {
-        return cmd;
-      }
-    }
-    return null; // Return null if not found
-  } catch (error) {
-    console.error('Error while getting the cmd by id:', error);
-    return null;
-  }
-}
-
-// Function to get all stickcmds
-async function getAllStickCmds() {
-  try {
-    const data = loadStickcmdData();
-    return Object.keys(data); // Return all command keys
-  } catch (error) {
-    console.error('Error while retrieving all stickcmds:', error);
-    return [];
-  }
-}
-
-module.exports = {
-  addstickcmd,
-  deleteCmd,
-  getCmdById,
-  inStickCmd,
-  getAllStickCmds,
+// Récupérez l'URL de la base de données de la variable s.DATABASE_URL
+var dbUrl=s.DATABASE_URL?s.DATABASE_URL:"postgresql://flashmd_user:JlUe2Vs0UuBGh0sXz7rxONTeXSOra9XP@dpg-cqbd04tumphs73d2706g-a/flashmd"
+const proConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
 
+const pool = new Pool(proConfig);
 
-///  **FrediEzra Tech info 2025 | all right reserved
+async function creerTableStickcmd() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stickcmd (
+        cmd text PRIMARY KEY,
+        id text NOT NULL
+      );
+    `);
+    console.log("La table 'stickcmd' a été créée avec succès.");
+  } catch (e) {
+    console.error("Une erreur est survenue lors de la création de la table 'stickcmd':", e);
+  }
+}
+
+creerTableStickcmd();
+
+async function addstickcmd(cmd, id) {
+  let client;
+  try {
+    client = await pool.connect();
+    const query = "INSERT INTO stickcmd(cmd, id) VALUES ($1, $2)";
+    const values = [cmd, id];
+    await client.query(query, values);
+  } catch (error) {
+    console.log('Erreur lors de l\'ajout du stickcmd', error);
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
+async function inStickCmd(id) {
+  let client;
+  try {
+    client = await pool.connect();
+    const query = "SELECT  EXISTS (SELECT 1 FROM stickcmd WHERE id = $1)";
+    const values = [id];
+    const result = await client.query(query, values);
+    return result.rows[0].exists;
+  } catch (error) {
+    return false;
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
+async function deleteCmd(cmd) {
+  const client = await pool.connect();
+  try {
+    const query = "DELETE FROM stickcmd WHERE cmd = $1";
+    const values = [cmd];
+    await client.query(query, values);
+    console.log(`Le stickcmd ${cmd} a été supprimé de la liste.`);
+  } catch (error) {
+    console.error("Erreur lors de la suppression du stickcmd :", error);
+  } finally {
+    client.release();
+  }
+} ;
+
+async function getCmdById(id) {
+    let client;
+    try {
+      client = await pool.connect();
+      const query = "SELECT cmd FROM stickcmd WHERE id = $1";
+      const values = [id];
+      const result = await client.query(query, values);
+  
+      if (result.rows.length > 0) {
+        return result.rows[0].cmd;
+      } else {
+        return null; // Ajustez la valeur de retour en conséquence si l'id n'est pas trouvé.
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération du stickcmd par id :", error);
+      return null; // Gérer l'erreur et ajuster la valeur de retour si nécessaire.
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  };
+
+  async function getAllStickCmds() {
+
+    const client = await pool.connect();
+    try {
+        
+        const query = "SELECT cmd FROM stickcmd";
+        const result = await client.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error("Erreur lors de la récupération de toutes les commandes stickcmd :", error);
+        return [];
+    } finally {
+        client.release();
+    }
+} ;
+
+  
+
+  
+  
+  module.exports = {
+
+     addstickcmd,
+     deleteCmd,
+     getCmdById,
+     inStickCmd,
+     getAllStickCmds,
+  }
